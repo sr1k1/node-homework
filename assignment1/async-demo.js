@@ -1,4 +1,5 @@
 const fs = require("fs");
+// const fs = require("node:fs"); // specifies the source of the code
 const path = require("path");
 
 // Write a sample file for demonstration
@@ -94,3 +95,7 @@ async function asyncReadFile() {
   }
 }
 asyncReadFile();
+
+const farm = { sheep: 2 };
+
+console.log(farm.shepard?.name);

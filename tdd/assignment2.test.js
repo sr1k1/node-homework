@@ -151,21 +151,21 @@ describe("Assignment 2: Event Handlers, HTTP Servers, and Express", () => {
 
   describe("Task 4: Middleware", () => {
     test("middleware/error-handler.js should report a server error", async () => {
-      const errHandler = require("../middleware/error-handler")
+      const errHandler = require("../middleware/error-handler");
       const req = httpMocks.createRequest();
       const res = httpMocks.createResponse();
-      res.headersSent=false;
+      res.headersSent = false;
       const err = new Error("a server error occurred.");
-      await errHandler(err, req,res, null);
+      await errHandler(err, req, res, null);
       expect(res.statusCode).toBe(500);
     });
-    test("middleware/not-found.js should return a 404", async ()=>{
+    test("middleware/not-found.js should return a 404", async () => {
       const notFound = require("../middleware/not-found");
       const req = httpMocks.createRequest();
       const res = httpMocks.createResponse();
       const next = () => {};
-      await notFound(req,res, next);
+      await notFound(req, res, next);
       expect(res.statusCode).toBe(404);
-    })
+    });
   });
 });
