@@ -3,9 +3,6 @@ const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const dogsRouter = require("./routes/dogs");
 
-// Import status codes
-const { StatusCodes } = require("http-status-codes");
-
 const app = express();
 
 // =============== Your middleware here =============== //
@@ -31,20 +28,21 @@ app.use((req, res, next) => {
 // security headers
 
 // body parsing
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 // content-type validation
-
-// Validate POST request header
-// app.use((req, res, next) => {
-//   if (req.method === "POST") {
-//     if (req.headers["content-type"] !== "application/json") {
-//       res.status(StatusCodes.BAD_REQUEST).json({message: "Incorrect content type."});
-//     }
-//     return;
-//   }
-//   next();
-// });
+app.use((req, res, next) => {
+  if (req.method === "POST") {
+    const contentType = req.get("Content-Type");
+    if (!contentType || contentType.toLowerCase() !== "application/json") {
+      return res.status(400).json({
+        error: "Content-Type must be application/json",
+        requestId: req.requestId,
+      });
+    }
+  }
+  next();
+});
 
 // static image serving
 app.use(express.static(path.join(__dirname, "public")));
@@ -55,12 +53,17 @@ app.use("/", dogsRouter); // Do not remove this line
 // error handling
 app.use((err, req, res, next) => {
   return res
-    .status(StatusCodes.INTERNAL_SERVER_ERROR)
+    .status(500)
     .json({ error: "Internal Server Error", requestId: req.requestId });
 });
 
-// 404 handler
-
+// not found (404) handler
+app.use((req, res) => {
+  return res.status(404).json({
+    error: "Route not found",
+    requestId: req.requestId,
+  });
+});
 const server = app.listen(3000, () =>
   console.log("Server listening on port 3000"),
 );
