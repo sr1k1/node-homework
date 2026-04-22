@@ -26,6 +26,12 @@ app.use((req, res, next) => {
 });
 
 // security headers
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  next();
+});
 
 // body parsing
 app.use(express.json({ limit: "1mb" }));
@@ -50,12 +56,31 @@ app.use(express.static(path.join(__dirname, "public")));
 //routes
 app.use("/", dogsRouter); // Do not remove this line
 
-// error handling
+// Custom error handling
 app.use((err, req, res, next) => {
-  return res
-    .status(500)
-    .json({ error: "Internal Server Error", requestId: req.requestId });
+  console.log(err.message);
+  // Pull out error value
+  const errVal = err?.statusCode || 500;
+
+  if (errVal >= 500) {
+    console.error(`ERROR: Error ${err.message}`);
+  } else {
+    console.warn(`WARN: ${err.name} ${err.message}`);
+  }
+
+  // Send error response to server
+  res.status(errVal).json({
+    error: err.message || "Internal Server Error",
+    requestId: req.requestId,
+  });
 });
+
+// // Internal Server Error
+// app.use((err, req, res, next) => {
+//   return res
+//     .status(500)
+//     .json({ error: "Internal Server Error", requestId: req.requestId });
+// });
 
 // not found (404) handler
 app.use((req, res) => {
