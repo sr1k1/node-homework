@@ -1,5 +1,13 @@
 const express = require("express");
 
+// Global variables (to temporarily store records in memory)
+global.user_id; // Stores current logged-in user object or null
+global.users; // array of user objects
+global.tasks; // array of task objects
+
+// Imported Routers
+const userRouter = require("./routes/userRoutes");
+
 // Imported Handlers
 const notFoundHandler = require("./middleware/not-found");
 const errorHandler = require("./middleware/error-handler");
@@ -7,7 +15,15 @@ const errorHandler = require("./middleware/error-handler");
 // Create app using express()
 const app = express();
 
+// Initialize global variables
+global.user_id = null;
+global.users = [];
+global.tasks = [];
+
 // =============== Create middleware to use before passing into routes ============ //
+// Parse JSON body
+app.use(express.json({ limit: "1kb" }));
+
 // Log useful parameters for debugging
 app.use((req, res, next) => {
   console.log(`Method: ${req.method}`);
@@ -19,14 +35,17 @@ app.use((req, res, next) => {
 });
 
 // =============== Create route handlers for app ============= //
-// Route handler for main page (e.g. process function when HTTP GET request received for "/")
+// main page (e.g. process function when HTTP GET request received for "/")
 app.get("/", (req, res) => {
-  res.send("Hello, World!");
+  res.send({ message: "Hello, World!" });
 });
 
 app.post("/testpost", (req, res) => {
-  return res.send(`Posted something!`);
+  res.send({ message: `Posted something!` });
 });
+
+// User routes
+app.use("/api/users", userRouter);
 
 // Not found handler
 app.use(notFoundHandler);
