@@ -50,7 +50,7 @@ function create(req, res) {
   global.tasks.push(newTask);
 
   // Return sanitized list
-  return res.json(sanitizeList(newTask));
+  return res.status(StatusCodes.CREATED).json(sanitizeList(newTask));
 }
 
 // Returns sanitized list of tasks for current user
@@ -59,6 +59,13 @@ function index(req, res) {
   const userTasks = global.tasks.filter(
     (task) => task.userId === global.user_id.email,
   );
+
+  // If no user tasks found, raise 404 not found
+  if (userTasks.length === 0) {
+    return res
+      .status(StatusCodes.NOT_FOUND)
+      .json({ message: "Tasks were not found." });
+  }
 
   // Remove userId from all tasks on list (create copy of each task first)
   const sanitizedTaskList = userTasks.map((task) => {

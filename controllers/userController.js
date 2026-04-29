@@ -1,25 +1,47 @@
 const { StatusCodes } = require("http-status-codes");
 
+// Imports for hashing
+const crypto = require("crypto");
+const util = require("util");
+const scrypt = util.promisify(crypto.scrypt);
+
 // Function imports
 const { userSchema } = require("../validation/userSchema");
 
-function register(req, res) {
+// Hashing functions
+async function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derivedKey = await scrypt(password, salt, 64);
+  return `${salt}:${derivedKey.toString("hex")}`;
+}
+
+async function comparePassword(inputPassword, storedHash) {
+  const [salt, key] = storedHash.split(":");
+  const keyBuffer = Buffer.from(key, "hex");
+  const derivedKey = await scrypt(inputPassword, salt, 64);
+  return crypto.timingSafeEqual(keyBuffer, derivedKey);
+}
+
+// Routers
+async function register(req, res) {
   // Check for presense of req.body
   if (!req.body) {
     req.body = {};
   }
 
-  console.log(req.body);
   // Validate body and raise appropriate error
   const { error, value } = userSchema.validate(req.body, {
     abortEarly: false,
   });
 
-  console.log(value);
   // Send Bad Request to server if error present
   if (error) {
     return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
   }
+
+  // Hash password and store it in value before saving to database
+  const hashedPassword = await hashPassword(value.password);
+  value.password = hashedPassword;
 
   // make copy of passed-in user
   const newUser = { ...value };
@@ -30,13 +52,11 @@ function register(req, res) {
 
   delete value.password;
 
-  console.log("All users:");
-  console.log(global.users);
   // Send back everything but the password
   res.status(StatusCodes.CREATED).json(value);
 }
 
-function logon(req, res) {
+async function logon(req, res) {
   // unpack email and password from request body
   const { email, password } = req.body;
 
@@ -45,11 +65,14 @@ function logon(req, res) {
     return userObj.email === email;
   });
 
-  // Authenticate only if user is found AND password matches
-  if (foundUser && foundUser?.password === password) {
+  // Authenticate only if user is found AND hashed password matches
+  const arePasswordsMatching = await comparePassword(
+    password,
+    foundUser?.password,
+  );
+
+  if (foundUser && arePasswordsMatching) {
     global.user_id = foundUser;
-    console.log("Current user");
-    console.log(foundUser.name);
     res.status(StatusCodes.OK).json({ name: foundUser.name, email: email });
   }
 
