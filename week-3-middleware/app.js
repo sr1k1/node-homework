@@ -40,7 +40,10 @@ app.use(express.json({ limit: "1mb" }));
 app.use((req, res, next) => {
   if (req.method === "POST") {
     const contentType = req.get("Content-Type");
-    if (!contentType || contentType.toLowerCase() !== "application/json") {
+    if (
+      !contentType ||
+      !contentType.toLowerCase().includes("application/json")
+    ) {
       return res.status(400).json({
         error: "Content-Type must be application/json",
         requestId: req.requestId,

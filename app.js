@@ -7,10 +7,14 @@ global.tasks; // array of task objects
 
 // Imported Routers
 const userRouter = require("./routes/userRoutes");
+const taskRouter = require("./routes/taskRoutes");
 
 // Imported Handlers
 const notFoundHandler = require("./middleware/not-found");
 const errorHandler = require("./middleware/error-handler");
+
+// Imported Middleware
+const authMiddleware = require("./middleware/auth");
 
 // Create app using express()
 const app = express();
@@ -46,6 +50,9 @@ app.post("/testpost", (req, res) => {
 
 // User routes
 app.use("/api/users", userRouter);
+
+// Task Routes: Call authentication middleware before passing to taskRouter
+app.use("/api/tasks", authMiddleware, taskRouter);
 
 // Not found handler
 app.use(notFoundHandler);
