@@ -58,10 +58,9 @@ async function register(req, res, next) {
     );
   } catch (e) {
     // Email might already be registered
-
     // Error codee for unique constraint for email violated
     if (e.code === "23505") {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({ message: "Email already registered." });
     }
 
     // If error not of unique email violation, pass to error handler
@@ -95,16 +94,15 @@ async function logon(req, res) {
 
     if (arePasswordsMatching) {
       global.user_id = result.rows[0].id;
-      res
+      return res
         .status(StatusCodes.OK)
         .json({ name: result.rows[0].name, email: result.rows[0].email });
     } else {
       // Otherwise, return UNAUTHORIZED status and say that Authentication failed
-      res
+      return res
         .status(StatusCodes.UNAUTHORIZED)
         .json({ message: "Authentication Failed." });
     }
-    return;
   } else {
     // No user matching email found; send 401
     res
