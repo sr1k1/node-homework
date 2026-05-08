@@ -87,11 +87,19 @@ async function show(req, res) {
   }
 
   // Query for particular task
-  const taskToShow = pool.query(
+  const taskToShow = await pool.query(
     `SELECT id, title, is_completed FROM tasks
     WHERE id = $1 AND user_id = $2`,
     [taskToFind, global.user_id],
   );
+
+  // If nothing is returned, send and return 404 error
+  // Potentially redundant?
+  if (!taskToShow.rows.length) {
+    return res
+      .status(StatusCodes.NOT_FOUND)
+      .json({ message: "Task not found" });
+  }
 
   // Return task
   return res.json(taskToShow.rows);
