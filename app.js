@@ -1,5 +1,8 @@
 const express = require("express");
 
+// Pool database connections Import
+const pool = require("./db/pg-pool");
+
 // Global variables (to temporarily store records in memory)
 global.user_id; // Stores current logged-in user object or null
 global.users; // array of user objects
@@ -54,6 +57,18 @@ app.use("/api/users", userRouter);
 // Task Routes: Call authentication middleware before passing to taskRouter
 app.use("/api/tasks", authMiddleware, taskRouter);
 
+// app health route
+app.get("/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.json({ status: "ok", db: "connected" });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: `db not connected, error: ${err.message}` });
+  }
+});
+
 // Not found handler
 app.use(notFoundHandler);
 
@@ -86,6 +101,7 @@ async function shutdown(code = 0) {
     await new Promise((resolve) => server.close(resolve));
     console.log("HTTP server closed.");
     // If you have DB connections, close them here
+    await pool.end();
   } catch (err) {
     console.error("Error during shutdown:", err);
     code = 1;

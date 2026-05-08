@@ -1,5 +1,8 @@
 const { StatusCodes } = require("http-status-codes");
 
+// Import(s) for db connection
+const pool = require("./../db/pg-pool");
+
 // Imports for hashing
 const crypto = require("crypto");
 const util = require("util");
@@ -23,7 +26,7 @@ async function comparePassword(inputPassword, storedHash) {
 }
 
 // Routers
-async function register(req, res) {
+async function register(req, res, next) {
   // Check for presense of req.body
   if (!req.body) {
     req.body = {};
@@ -36,51 +39,75 @@ async function register(req, res) {
 
   // Send Bad Request to server if error present
   if (error) {
-    return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Validation failed", details: error.details });
   }
 
+  let user = null;
   // Hash password and store it in value before saving to database
-  const hashedPassword = await hashPassword(value.password);
-  value.password = hashedPassword;
+  value.hashed_password = await hashPassword(value.password);
 
-  // make copy of passed-in user
-  const newUser = { ...value };
+  // Attempt inserting this new user into table; error thrown if email
+  // is already registered
+  try {
+    user = await pool.query(
+      `INSERT INTO users (email, name, hashed_password) 
+      VALUES ($1, $2, $3) RETURNING id, email, name`,
+      [value.email, value.name, value.hashed_password],
+    );
+  } catch (e) {
+    // Email might already be registered
+    // Error codee for unique constraint for email violated
+    if (e.code === "23505") {
+      return res.status(400).json({ message: "Email already registered." });
+    }
 
-  // Add current user to list of all users and make user the logged-in user
-  global.users.push(newUser);
-  global.user_id = newUser;
+    // If error not of unique email violation, pass to error handler
+    return next(e);
+  }
 
-  delete value.password;
+  // Set global user to new user and send object to server
+  global.user_id = user.rows[0].id;
 
-  // Send back everything but the password
-  res.status(StatusCodes.CREATED).json(value);
+  res
+    .status(StatusCodes.CREATED)
+    .json({ name: user.rows[0].name, email: user.rows[0].email });
 }
 
 async function logon(req, res) {
   // unpack email and password from request body
   const { email, password } = req.body;
 
-  // Find existance of user with matching email
-  const foundUser = global.users.find((userObj) => {
-    return userObj.email === email;
-  });
+  // Search database for user with matching email
+  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+    email,
+  ]);
 
-  // Authenticate only if user is found AND hashed password matches
-  const arePasswordsMatching = await comparePassword(
-    password,
-    foundUser?.password,
-  );
+  // Check if a user was found; if not, send back 401 error
+  if (result.rows.length) {
+    // Compare password to stored hash; return unauthenticated if mismatch
+    const arePasswordsMatching = await comparePassword(
+      password,
+      result.rows[0].hashed_password,
+    );
 
-  if (foundUser && arePasswordsMatching) {
-    global.user_id = foundUser;
-    res.status(StatusCodes.OK).json({ name: foundUser.name, email: email });
-  }
-
-  // Otherwise, return UNAUTHORIZED status and say that Authentication failed
-  else {
+    if (arePasswordsMatching) {
+      global.user_id = result.rows[0].id;
+      return res
+        .status(StatusCodes.OK)
+        .json({ name: result.rows[0].name, email: result.rows[0].email });
+    } else {
+      // Otherwise, return UNAUTHORIZED status and say that Authentication failed
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ message: "Authentication Failed." });
+    }
+  } else {
+    // No user matching email found; send 401
     res
       .status(StatusCodes.UNAUTHORIZED)
-      .json({ message: "Authentication Failed." });
+      .json({ message: "User matching email not found." });
   }
   return;
 }
