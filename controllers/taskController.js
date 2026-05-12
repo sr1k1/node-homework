@@ -6,25 +6,6 @@ const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
 // Database connection pool import
 const pool = require("./../db/pg-pool");
 
-// ======================= Helper Functions ======================= //
-// Counter function to create unique id for each task
-const taskCounter = (() => {
-  let lastTaskNumber = 0;
-
-  // Return function whose context (variable lastTaskNumber) is
-  // saved even when function use is complete.
-  return () => {
-    lastTaskNumber += 1;
-    return lastTaskNumber;
-  };
-})();
-
-// Sanitizing List
-function sanitizeList(taskList) {
-  const { userId, ...sanitizedTask } = taskList;
-  return sanitizedTask;
-}
-
 // ============ Route handler functions =========== //
 
 async function create(req, res) {
