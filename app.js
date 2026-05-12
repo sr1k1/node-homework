@@ -82,7 +82,6 @@ const server = app.listen(port, () =>
   console.log(`Server is listening on port ${port}...`),
 );
 
-// Port shutdown
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
     console.error(`Port ${port} is already in use.`);
@@ -92,6 +91,7 @@ server.on("error", (err) => {
   process.exit(1);
 });
 
+// Port shutdown
 let isShuttingDown = false;
 async function shutdown(code = 0) {
   if (isShuttingDown) return;
