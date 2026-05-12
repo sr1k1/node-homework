@@ -1,7 +1,6 @@
 const { StatusCodes } = require("http-status-codes");
 
 // Import(s) for db connection
-const pool = require("./../db/pg-pool");
 const prisma = require("./../db/prisma");
 
 // Imports for hashing

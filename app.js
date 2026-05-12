@@ -1,7 +1,6 @@
 const express = require("express");
 
-// Pool database connections and Prisma import
-const pool = require("./db/pg-pool");
+// Prisma import
 const prisma = require("./db/prisma");
 
 // Global variables (to temporarily store records in memory)
@@ -102,8 +101,6 @@ async function shutdown(code = 0) {
     await new Promise((resolve) => server.close(resolve));
     console.log("HTTP server closed.");
     // If you have DB connections, close them here
-    await pool.end();
-
     await prisma.$disconnect();
     console.log("Prisma disconnected");
   } catch (err) {
