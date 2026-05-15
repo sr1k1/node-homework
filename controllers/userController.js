@@ -121,4 +121,47 @@ function logoff(req, res) {
   return;
 }
 
-module.exports = { register, logon, logoff };
+// Optional show method
+async function show(req, res) {
+  // Pull out userId if it exists
+  const userId = parseInt(req.params?.id);
+
+  // If no user id found, send bad request
+  if (!userId) {
+    return res
+      .send(StatusCodes.BAD_REQUEST)
+      .json({ message: "No user id supplemented." });
+  }
+
+  // If user id is given, find user and associate tasks.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      Task: {
+        where: { isCompleted: false },
+        select: {
+          id: true,
+          title: true,
+          priority: true,
+          createdAt: true,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    },
+  });
+
+  // Null value returned if no user found; send appropriate server response
+  if (!user) {
+    res.status(StatusCodes.NOT_FOUND).json({ message: "User not found. " });
+  }
+
+  // Send non-empty response to server
+  return res.status(StatusCodes.OK).json(user);
+}
+
+module.exports = { register, logon, logoff, show };

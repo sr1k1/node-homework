@@ -31,7 +31,7 @@ async function create(req, res) {
       isCompleted: value.isCompleted,
       userId: global.user_id,
     },
-    select: { id: true, isCompleted: true, title: true },
+    select: { id: true, title: true, isCompleted: true, priority: true },
   });
 
   // Return task object as is; it only has the id, title, and is_completed status,
@@ -51,6 +51,14 @@ async function index(req, res) {
       title: true,
       isCompleted: true,
       id: true,
+      priority: true,
+      createdAt: true,
+      User: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
     },
   });
 
