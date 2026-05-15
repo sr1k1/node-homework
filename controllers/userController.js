@@ -10,6 +10,7 @@ const scrypt = util.promisify(crypto.scrypt);
 
 // Function imports
 const { userSchema } = require("../validation/userSchema");
+const pool = require("../db/pg-pool");
 
 // Hashing functions
 async function hashPassword(password) {
