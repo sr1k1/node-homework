@@ -2,7 +2,7 @@ const { StatusCodes } = require("http-status-codes");
 
 const errorHandlerMiddleware = (err, req, res, next) => {
   // Check for Prisma connection errors
-  if (err.name === "PrismaCLientInitializationError") {
+  if (err.name === "PrismaClientInitializationError") {
     console.error("Couldn't connect to the database. Is it running?");
   }
   // Check for PostgreSQL active status
