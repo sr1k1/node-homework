@@ -11,6 +11,7 @@ global.tasks; // array of task objects
 // Imported Routers
 const userRouter = require("./routes/userRoutes");
 const taskRouter = require("./routes/taskRoutes");
+const analyticsRouter = require("./routes/analyticsRoutes");
 
 // Imported Handlers
 const notFoundHandler = require("./middleware/not-found");
@@ -56,6 +57,9 @@ app.use("/api/users", userRouter);
 
 // Task Routes: Call authentication middleware before passing to taskRouter
 app.use("/api/tasks", authMiddleware, taskRouter);
+
+// Analytics Routes
+app.use("/api/analytics", analyticsRouter);
 
 // app health route
 app.get("/health", async (req, res) => {

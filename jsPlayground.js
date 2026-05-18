@@ -20,3 +20,10 @@ console.log(undefinedVar);
 
 console.log("this is NaN when parseInt'd. Truthy?");
 console.log(isStillUndef === true);
+
+// -------------------------------- //
+const objTest = { clark: 14 };
+
+objTest.oligarchy = 15;
+
+console.log(objTest);

@@ -6,6 +6,36 @@ const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
 // Database connection import (Prisma)
 const prisma = require("./../db/prisma");
 
+// ======================= Helper functions ======================= //
+
+// index
+function createOrderBy(query) {
+  // Pull out sortBy and sortDirection parameters from query and initialize
+  // direction with default value
+  const sortBy = query.sortBy;
+  const sortDirection = query.sortDirection || "desc";
+
+  // create list of all possible sort filters for our purposes
+  const allSortFilters = [
+    "createdAt",
+    "title",
+    "isCompleted",
+    "priority",
+    "id",
+  ];
+
+  // If sortBy value is in the above list of filters, return an object
+  // with that sortBy and the given (or default) sort direction. This
+  // check is present to prevent someone from attempting to sort with an invalid
+  // value
+  if (allSortFilters.includes(sortBy)) {
+    return { [sortBy]: sortDirection };
+  }
+
+  // Otherwise, return default
+  return { createdAt: "desc" };
+}
+
 // ============ Route handler functions =========== //
 
 async function create(req, res) {
@@ -41,12 +71,52 @@ async function create(req, res) {
 
 // Returns sanitized list of tasks for current user
 async function index(req, res) {
-  // First filter out tasks only related to current user
+  const whereClause = { userId: global.user_id };
+
+  // Parse filter query params and build where clause
+  const { find, isCompleted, priority, min_date, max_date } = req.query;
+
+  // find: task titles based on search word
+  if (find) {
+    whereClause.title = {
+      contains: find,
+      mode: "insensitive",
+    };
+  }
+
+  // isCompleted: tasks matching isCompleted boolean
+  if (isCompleted !== "undefined") {
+    whereClause.isCompleted = isCompleted === "true";
+  }
+
+  // priority: matches given priority level (low, medium, high)
+  if (priority) {
+    whereClause.priority = priority;
+  }
+
+  // min and max dates: task falls within defined intervals
+  // If either exist, create object in whereClause for createdAt
+  if (min_date || max_date) {
+    whereClause.createdAt = {};
+
+    if (min_date) {
+      whereClause.createdAt.gte = new Date(min_date);
+    }
+    if (max_date) {
+      whereClause.createdAt.lte = new Date(max_date);
+    }
+  }
+
+  // Parse page and limit from query parameters
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  // Calculate skip value (to know how many tasks to skip)
+  const skip = (page - 1) * limit;
+
+  // Filter out tasks only related to current user based on skip and limit
   const tasks = await prisma.task.findMany({
-    where: {
-      // find only the task for this user
-      userId: global.user_id,
-    },
+    where: whereClause,
     select: {
       title: true,
       isCompleted: true,
@@ -60,17 +130,40 @@ async function index(req, res) {
         },
       },
     },
+    take: limit,
+    skip,
+    orderBy: createOrderBy(req.query),
   });
 
-  // If no user tasks found (i.e. num rows is 0), raise 404 not found
+  // If no user tasks found, raise 404 not found
   if (!tasks.length) {
     return res
       .status(StatusCodes.NOT_FOUND)
       .json({ message: "Tasks were not found." });
   }
 
+  // Find count of total tasks for pagination metadata
+  const totalUserTasksCount = await prisma.task.count({
+    where: whereClause,
+  });
+
+  // Find total number of pages for pagination metadata
+  const totalPages = Math.ceil(totalUserTasksCount / limit);
+
+  // Build pagination object
+  const pagination = {
+    page,
+    limit,
+    total: totalUserTasksCount,
+    pages: totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  };
   // Return row of data
-  return res.json(tasks);
+  return res.json({
+    tasks,
+    pagination,
+  });
 }
 
 // Returns task with particular ID for current user
