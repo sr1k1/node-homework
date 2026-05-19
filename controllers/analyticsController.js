@@ -134,4 +134,59 @@ async function getUserswithStats(req, res) {
   return res.json({ users, pagination });
 }
 
-module.exports = { getUserAnalytics, getUserswithStats };
+async function searchTasks(req, res) {
+  // Pull out search string from query (stored in parameter q)
+  const { q } = req.query;
+
+  // Send bad request if no search string or string less than two characters
+  if (!q || q.trim().length < 2) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      message:
+        "Search string either not provided, or shorter than two characters. ",
+    });
+  }
+
+  // Get limit from query (or default to 20)
+  const limit = parseInt(req.query.limit) || 20;
+
+  // Create three strings that exactly match, starts with, and contains to
+  // establish sorting order
+  const exactMatch = q;
+  const startsWith = `%${q}`;
+  const searchPattern = `%${q}%`;
+
+  // Put together query using $queryRaw
+  const results = await prisma.$queryRaw`
+  SELECT 
+    t.id, 
+    t.title, 
+    t.is_completed as "isCompleted", 
+    t.priority, 
+    t.created_at as "createdAt", 
+    t.user_id as "userId", 
+    u.name
+  FROM tasks AS t 
+  INNER JOIN users AS u 
+  ON t.user_id = u.id 
+  WHERE t.title ILIKE ${searchPattern} 
+    OR u.name ILIKE ${searchPattern}  
+  ORDER BY 
+    CASE
+      WHEN t.title ILIKE ${exactMatch} THEN 1 
+      WHEN t.title ILIKE ${startsWith} THEN 2 
+      WHEN t.title ILIKE ${searchPattern} THEN 3 
+      ELSE 4
+    END,
+    t.created_at DESC
+  LIMIT ${limit}`;
+
+  // Return above results array, query string, and a count (# results found)
+  const count = results.length;
+  return res.status(StatusCodes.OK).json({
+    results,
+    query: q,
+    count,
+  });
+}
+
+module.exports = { getUserAnalytics, getUserswithStats, searchTasks };
