@@ -5,7 +5,7 @@ const { StatusCodes } = require("http-status-codes");
 const prisma = require("../db/prisma");
 
 // Get method to retrieve analytics data for given user
-async function getUserProductivity(req, res) {
+async function getUserAnalytics(req, res) {
   // Parse and validate userID (send bad request to server if not given)
   const userId = parseInt(req.params?.id);
 
@@ -81,7 +81,7 @@ async function getUserProductivity(req, res) {
     .json({ taskStats, recentTasks, weeklyProgress });
 }
 
-async function getAllUsersProductivity(req, res) {
+async function getUserswithStats(req, res) {
   // Parse pagination parameters
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
@@ -134,4 +134,4 @@ async function getAllUsersProductivity(req, res) {
   return res.json({ users, pagination });
 }
 
-module.exports = { getUserProductivity, getAllUsersProductivity };
+module.exports = { getUserAnalytics, getUserswithStats };

@@ -69,6 +69,53 @@ async function create(req, res) {
   return res.status(StatusCodes.CREATED).json(task);
 }
 
+async function bulkCreate(req, res, next) {
+  // Check for tasks array in request body; if not, send Not Found error.
+  await console.log(req);
+  const { tasks } = req.body;
+
+  if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Invalid request data." });
+  }
+
+  // Validate each task using joi, and if any task gives an error, send 400 invalid data to server
+  const validatedTasks = [];
+  for (const task of tasks) {
+    const { error, value } = taskSchema.validate(task, {
+      abortEarly: false,
+    });
+
+    // Send bad request if error present and halt progression
+    if (error) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        message: "Invalid data: Provided task does not match schema.",
+      });
+    }
+
+    // Add (potentially modified) task to array above if all succeeds. Add userId to array
+    validatedTasks.push({ ...value, userId: global.user_id });
+  }
+
+  // Add all tasks to database using createMany
+  try {
+    const result = await prisma.task.createMany({
+      data: validatedTasks,
+    });
+
+    // Send success to server!
+    return res.status(StatusCodes.CREATED).json({
+      tasksCreated: result.count,
+      totalRequested: validatedTasks.length,
+    });
+
+    // Catch errors in creating data
+  } catch (error) {
+    return next(error);
+  }
+}
+
 // Returns sanitized list of tasks for current user
 async function index(req, res) {
   const whereClause = { userId: global.user_id };
@@ -303,4 +350,4 @@ async function deleteTask(req, res, next) {
   return res.json(deletedTask);
 }
 
-module.exports = { create, index, show, update, deleteTask };
+module.exports = { create, bulkCreate, index, show, update, deleteTask };
