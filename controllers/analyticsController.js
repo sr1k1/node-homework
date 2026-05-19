@@ -87,7 +87,7 @@ async function getUsersWithStats(req, res) {
   const limit = parseInt(req.query.limit) || 10;
 
   // Verify that both page and limit are within valid ranges and send error to server if not
-  if (!page >= 1 || !(limit >= 1 && limit <= 100)) {
+  if (!(page >= 1) || !(limit >= 1 && limit <= 100)) {
     return res
       .status(StatusCodes.BAD_REQUEST)
       .json({ message: "Page or limit query not within appropriate ranges" });
@@ -172,7 +172,7 @@ async function searchTasks(req, res) {
     t.priority, 
     t.created_at as "createdAt", 
     t.user_id as "userId", 
-    u.name
+    u.name as "user_name" 
   FROM tasks AS t 
   INNER JOIN users AS u 
   ON t.user_id = u.id 
