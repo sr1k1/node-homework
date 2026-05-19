@@ -56,11 +56,8 @@ async function create(req, res) {
 
   // Insert all relevant task attributes into tasks table
   const task = await prisma.task.create({
-    data: {
-      title: value.title,
-      isCompleted: value.isCompleted,
-      userId: global.user_id,
-    },
+    // Destructure title, isCompleted, and priority into object and add userId
+    data: { ...value, userId: global.user_id },
     select: { id: true, title: true, isCompleted: true, priority: true },
   });
 
@@ -240,7 +237,19 @@ async function show(req, res, next) {
         id: taskToFindId,
         userId: global.user_id,
       },
-      select: { id: true, title: true, isCompleted: true },
+      select: {
+        title: true,
+        isCompleted: true,
+        id: true,
+        priority: true,
+        createdAt: true,
+        User: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     // Throw error if taskToShow is null (default return if no task found)
