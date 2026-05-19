@@ -349,7 +349,6 @@ describe("testing analytics endpoints", () => {
     saveRes = httpMocks.createResponse();
     await getUsersWithStats(req, saveRes, () => {});
     expect(saveRes.statusCode).toBe(200);
-    console.log(saveRes);
     saveData = saveRes._getJSONData();
     expect(saveData).toHaveProperty("users");
     expect(saveData).toHaveProperty("pagination");
@@ -394,6 +393,8 @@ describe("testing the update and delete of tasks with priority", () => {
     req.params = { id: saveTaskId };
     req.body = { isCompleted: true, priority: "low" };
     saveRes = httpMocks.createResponse();
+    console.log("Found global user id on test file");
+    console.log(global.user_id);
     await update(req, saveRes, () => {});
     expect(saveRes.statusCode).toBe(200);
     saveData = saveRes._getJSONData();

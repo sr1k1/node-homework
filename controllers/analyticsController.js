@@ -81,7 +81,7 @@ async function getUserAnalytics(req, res) {
     .json({ taskStats, recentTasks, weeklyProgress });
 }
 
-async function getUserswithStats(req, res) {
+async function getUsersWithStats(req, res) {
   // Parse pagination parameters
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
@@ -197,4 +197,4 @@ async function searchTasks(req, res) {
   });
 }
 
-module.exports = { getUserAnalytics, getUserswithStats, searchTasks };
+module.exports = { getUserAnalytics, getUsersWithStats, searchTasks };
