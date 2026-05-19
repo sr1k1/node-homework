@@ -302,15 +302,6 @@ async function update(req, res, next) {
   // id for the task. As such, we now find and update task on our table of tasks.
   let task = null;
   try {
-    console.log("Global user id in my file");
-    console.log(global.user_id);
-    const findTask = await prisma.task.findUnique({
-      where: {
-        id: taskToFindId,
-      },
-    });
-    console.log("This is the task we are trying to find");
-    console.log(findTask);
     task = await prisma.task.update({
       data: value,
       where: {
@@ -322,8 +313,6 @@ async function update(req, res, next) {
     // Return updated object
     return res.json(task);
   } catch (err) {
-    console.log("We have an error!");
-    console.log(err.message);
     // If record not found
     if (err.code === "P2025") {
       return res
