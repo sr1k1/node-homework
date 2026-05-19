@@ -1,7 +1,7 @@
 const express = require("express");
 
-// Pool database connections Import
-const pool = require("./db/pg-pool");
+// Prisma import
+const prisma = require("./db/prisma");
 
 // Global variables (to temporarily store records in memory)
 global.user_id; // Stores current logged-in user object or null
@@ -60,12 +60,12 @@ app.use("/api/tasks", authMiddleware, taskRouter);
 // app health route
 app.get("/health", async (req, res) => {
   try {
-    await pool.query("SELECT 1");
+    await prisma.$queryRaw`SELECT 1`;
     res.json({ status: "ok", db: "connected" });
   } catch (err) {
     res
       .status(500)
-      .json({ message: `db not connected, error: ${err.message}` });
+      .json({ status: "error", db: "not connected", error: err.message });
   }
 });
 
@@ -82,7 +82,6 @@ const server = app.listen(port, () =>
   console.log(`Server is listening on port ${port}...`),
 );
 
-// Port shutdown
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
     console.error(`Port ${port} is already in use.`);
@@ -92,16 +91,18 @@ server.on("error", (err) => {
   process.exit(1);
 });
 
+// Port shutdown
 let isShuttingDown = false;
 async function shutdown(code = 0) {
-  if (isShuttingDown) return;
+  if (isShuttingDown) return; //early return
   isShuttingDown = true;
   console.log("Shutting down gracefully...");
   try {
     await new Promise((resolve) => server.close(resolve));
     console.log("HTTP server closed.");
     // If you have DB connections, close them here
-    await pool.end();
+    await prisma.$disconnect();
+    console.log("Prisma disconnected");
   } catch (err) {
     console.error("Error during shutdown:", err);
     code = 1;
