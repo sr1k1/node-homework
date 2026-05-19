@@ -158,6 +158,13 @@ async function index(req, res) {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
+  // Verify that both page and limit are within valid ranges and send error to server if not
+  if (!page >= 1 || !(limit >= 1 && limit <= 100)) {
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Page or limit query not within appropriate ranges" });
+  }
+
   // Calculate skip value (to know how many tasks to skip)
   const skip = (page - 1) * limit;
 
@@ -294,8 +301,10 @@ async function update(req, res, next) {
         id: taskToFindId,
         userId: global.user_id,
       },
-      select: { title: true, isCompleted: true, id: true },
+      select: { title: true, isCompleted: true, id: true, priority: true },
     });
+    // Return updated object
+    return res.json(task);
   } catch (err) {
     // If record not found
     if (err.code === "P2025") {
@@ -307,9 +316,6 @@ async function update(req, res, next) {
       return next(err);
     }
   }
-
-  // Return updated object
-  return res.json(task);
 }
 
 async function deleteTask(req, res, next) {
@@ -333,8 +339,10 @@ async function deleteTask(req, res, next) {
         id: taskToFindId,
         userId: global.user_id,
       },
-      select: { id: true, isCompleted: true, title: true },
+      select: { id: true, isCompleted: true, title: true, priority: true },
     });
+    // Return deleted task
+    return res.json(deletedTask);
   } catch (err) {
     // Not found error
     if (err.code === "P2025") {
@@ -345,9 +353,6 @@ async function deleteTask(req, res, next) {
     // Pass on to next handler
     next(err);
   }
-
-  // Return deleted task
-  return res.json(deletedTask);
 }
 
 module.exports = { create, bulkCreate, index, show, update, deleteTask };

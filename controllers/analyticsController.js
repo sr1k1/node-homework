@@ -85,6 +85,14 @@ async function getUserswithStats(req, res) {
   // Parse pagination parameters
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
+
+  // Verify that both page and limit are within valid ranges and send error to server if not
+  if (!page >= 1 || !(limit >= 1 && limit <= 100)) {
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Page or limit query not within appropriate ranges" });
+  }
+
   const skip = (page - 1) * limit;
 
   // Get all users and counts for their complete and incomplete tasks
