@@ -131,21 +131,36 @@ async function logon(req, res) {
   // Set all emails to lower case because future joi validations lower case the emails,
   // so that Joi doesn't potentially fail validation later
   email = email.toLowerCase();
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+    },
+  });
 
   // Check if a user was found; if not, send back 401 error
   if (user) {
+    // Look up in database again, but this time to retrieve password
+    const userPass = await prisma.user.findUnique({
+      where: {
+        id: user.id,
+      },
+      select: {
+        hashedPassword: true,
+      },
+    });
     // Compare password to stored hash; return unauthenticated if mismatch
     const arePasswordsMatching = await comparePassword(
       password,
-      user.hashedPassword,
+      userPass.hashedPassword,
     );
 
     if (arePasswordsMatching) {
       global.user_id = user.id;
-      return res
-        .status(StatusCodes.OK)
-        .json({ name: user.name, email: user.email });
+      return res.status(StatusCodes.OK).json(user);
     } else {
       // Otherwise, return UNAUTHORIZED status and say that Authentication failed
       return res
