@@ -185,13 +185,6 @@ async function index(req, res) {
     orderBy: createOrderBy(req.query),
   });
 
-  // If no user tasks found, raise 404 not found
-  if (!tasks.length) {
-    return res
-      .status(StatusCodes.NOT_FOUND)
-      .json({ message: "Tasks were not found." });
-  }
-
   // Find count of total tasks for pagination metadata
   const totalUserTasksCount = await prisma.task.count({
     where: whereClause,
