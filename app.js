@@ -1,7 +1,12 @@
-// Package imports
+// General package imports
 const express = require("express");
 const prisma = require("./db/prisma");
 const cookieParser = require("cookie-parser");
+
+// Security package imports
+const helmet = require("helmet");
+const { xss } = require("express-xss-sanitizer");
+const rateLimiter = require("express-rate-limit");
 
 // Imported Routers
 const userRouter = require("./routes/userRoutes");
@@ -15,12 +20,30 @@ const errorHandler = require("./middleware/error-handler");
 // Create app using express()
 const app = express();
 
+// Enable "trust proxy" to allow our HTTP app to interface with
+// the front end's HTTPS proxy and use secure cookies
+app.set("trust proxy", 1);
+
 // =============== Create middleware to use before passing into routes ============ //
+// Rate limiter (prevent DOS attack)
+app.use(
+  rateLimiter({
+    windowMs: 15 * 60 * 1000, // specify a 15 minute window
+    max: 100, // each IP gets 100 requests per window specified above
+  }),
+);
+
+// Helmet for more added protection
+app.use(helmet());
+
 // Parse JSON body
 app.use(express.json({ limit: "1kb" }));
 
 // Parse cookies
 app.use(cookieParser());
+
+// Sanitize request body and cookies to prevent cross site scripting attacks
+app.use(xss());
 
 // Log useful parameters for debugging
 app.use((req, res, next) => {
