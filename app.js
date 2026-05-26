@@ -1,7 +1,7 @@
+// Package imports
 const express = require("express");
-
-// Prisma import
 const prisma = require("./db/prisma");
+const cookieParser = require("cookie-parser");
 
 // Global variables (to temporarily store records in memory)
 global.user_id; // Stores current logged-in user object or null
@@ -31,6 +31,9 @@ global.tasks = [];
 // =============== Create middleware to use before passing into routes ============ //
 // Parse JSON body
 app.use(express.json({ limit: "1kb" }));
+
+// Parse cookies
+app.use(cookieParser());
 
 // Log useful parameters for debugging
 app.use((req, res, next) => {
