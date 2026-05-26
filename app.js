@@ -3,11 +3,6 @@ const express = require("express");
 const prisma = require("./db/prisma");
 const cookieParser = require("cookie-parser");
 
-// Global variables (to temporarily store records in memory)
-global.user_id; // Stores current logged-in user object or null
-global.users; // array of user objects
-global.tasks; // array of task objects
-
 // Imported Routers
 const userRouter = require("./routes/userRoutes");
 const taskRouter = require("./routes/taskRoutes");
@@ -19,11 +14,6 @@ const errorHandler = require("./middleware/error-handler");
 
 // Create app using express()
 const app = express();
-
-// Initialize global variables
-global.user_id = null;
-global.users = [];
-global.tasks = [];
 
 // =============== Create middleware to use before passing into routes ============ //
 // Parse JSON body
