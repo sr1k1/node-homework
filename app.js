@@ -17,9 +17,6 @@ const analyticsRouter = require("./routes/analyticsRoutes");
 const notFoundHandler = require("./middleware/not-found");
 const errorHandler = require("./middleware/error-handler");
 
-// Imported Middleware
-const authMiddleware = require("./middleware/auth");
-
 // Create app using express()
 const app = express();
 
@@ -58,11 +55,11 @@ app.post("/testpost", (req, res) => {
 // User routes
 app.use("/api/users", userRouter);
 
-// Task Routes: Call authentication middleware before passing to taskRouter
-app.use("/api/tasks", authMiddleware, taskRouter);
+// Task Routes
+app.use("/api/tasks", taskRouter);
 
 // Analytics Routes
-app.use("/api/analytics", authMiddleware, analyticsRouter);
+app.use("/api/analytics", analyticsRouter);
 
 // app health route
 app.get("/health", async (req, res) => {

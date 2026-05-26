@@ -57,7 +57,7 @@ async function create(req, res) {
   // Insert all relevant task attributes into tasks table
   const task = await prisma.task.create({
     // Destructure title, isCompleted, and priority into object and add userId
-    data: { ...value, userId: global.user_id },
+    data: { ...value, userId: req.user.id },
     select: { id: true, title: true, isCompleted: true, priority: true },
   });
 
@@ -91,7 +91,7 @@ async function bulkCreate(req, res, next) {
     }
 
     // Add (potentially modified) task to array above if all succeeds. Add userId to array
-    validatedTasks.push({ ...value, userId: global.user_id });
+    validatedTasks.push({ ...value, userId: req.user.id });
   }
 
   // Add all tasks to database using createMany
@@ -114,7 +114,7 @@ async function bulkCreate(req, res, next) {
 
 // Returns sanitized list of tasks for current user
 async function index(req, res) {
-  const whereClause = { userId: global.user_id };
+  const whereClause = { userId: req.user.id };
 
   // Parse filter query params and build where clause
   const { find, isCompleted, priority, min_date, max_date } = req.query;
@@ -227,7 +227,7 @@ async function show(req, res, next) {
     taskToShow = await prisma.task.findUnique({
       where: {
         id: taskToFindId,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: {
         title: true,
@@ -299,7 +299,7 @@ async function update(req, res, next) {
       data: value,
       where: {
         id: taskToFindId,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: { title: true, isCompleted: true, id: true, priority: true },
     });
@@ -329,7 +329,7 @@ async function deleteTask(req, res, next) {
       .json({ message: "The task ID passed is not valid." });
   }
 
-  // At this point, we have a task id and a user id (from active user in global variable)
+  // At this point, we have a task id and a user id
   // As such, we can jump into deleting task from table and returning id, title, and isCompleted
   let deletedTask = null;
 
@@ -337,7 +337,7 @@ async function deleteTask(req, res, next) {
     deletedTask = await prisma.task.delete({
       where: {
         id: taskToFindId,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: { id: true, isCompleted: true, title: true, priority: true },
     });
