@@ -12,6 +12,7 @@ model Task {
   title        String   @db.VarChar(255)
   isCompleted  Boolean  @default(false) @map("is_completed")
   userId       Int      @map("user_id")
+  priority     String   @default("medium") @db.VarChar(10)
   createdAt    DateTime @default(now()) @db.Timestamp(6) @map("created_at")
   User         User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 

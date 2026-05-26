@@ -19,7 +19,6 @@ const {
 } = require("../controllers/analyticsController");
 const errorHandlerMiddleware = require("../middleware/error-handler");
 
-
 let user1 = null;
 let user2 = null;
 let saveRes = null;
@@ -72,16 +71,18 @@ describe("testing logon, register, and logoff with transactions", () => {
     expect(user1).toBeDefined();
     const welcomeTasks = await prisma.task.findMany({
       where: { userId: user1.id },
-      select: { title: true }
+      select: { title: true },
     });
     const taskTitles = welcomeTasks.map((task) => task.title);
     expect(taskTitles).toContain("Complete your profile");
     expect(taskTitles).toContain("Add your first task");
     expect(taskTitles).toContain("Explore the app");
-    
+
     // Also verify from saveData if available (from registration response)
     if (saveData && saveData.welcomeTasks) {
-      const responseTaskTitles = saveData.welcomeTasks.map((task) => task.title);
+      const responseTaskTitles = saveData.welcomeTasks.map(
+        (task) => task.title,
+      );
       expect(responseTaskTitles).toContain("Complete your profile");
       expect(responseTaskTitles).toContain("Add your first task");
       expect(responseTaskTitles).toContain("Explore the app");
@@ -95,7 +96,7 @@ describe("testing logon, register, and logoff with transactions", () => {
     });
     saveRes = httpMocks.createResponse();
     await logon(req, saveRes, () => {});
-    expect(saveRes.statusCode).toBe(200); 
+    expect(saveRes.statusCode).toBe(200);
   });
 
   it("returns the expected name.", () => {
@@ -348,7 +349,6 @@ describe("testing analytics endpoints", () => {
     saveRes = httpMocks.createResponse();
     await getUsersWithStats(req, saveRes, () => {});
     expect(saveRes.statusCode).toBe(200);
-    console.log(saveRes);
     saveData = saveRes._getJSONData();
     expect(saveData).toHaveProperty("users");
     expect(saveData).toHaveProperty("pagination");
@@ -393,6 +393,8 @@ describe("testing the update and delete of tasks with priority", () => {
     req.params = { id: saveTaskId };
     req.body = { isCompleted: true, priority: "low" };
     saveRes = httpMocks.createResponse();
+    console.log("Found global user id on test file");
+    console.log(global.user_id);
     await update(req, saveRes, () => {});
     expect(saveRes.statusCode).toBe(200);
     saveData = saveRes._getJSONData();

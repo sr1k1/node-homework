@@ -6,6 +6,36 @@ const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
 // Database connection import (Prisma)
 const prisma = require("./../db/prisma");
 
+// ======================= Helper functions ======================= //
+
+// index
+function createOrderBy(query) {
+  // Pull out sortBy and sortDirection parameters from query and initialize
+  // direction with default value
+  const sortBy = query.sortBy;
+  const sortDirection = query.sortDirection || "desc";
+
+  // create list of all possible sort filters for our purposes
+  const allSortFilters = [
+    "createdAt",
+    "title",
+    "isCompleted",
+    "priority",
+    "id",
+  ];
+
+  // If sortBy value is in the above list of filters, return an object
+  // with that sortBy and the given (or default) sort direction. This
+  // check is present to prevent someone from attempting to sort with an invalid
+  // value
+  if (allSortFilters.includes(sortBy)) {
+    return { [sortBy]: sortDirection };
+  }
+
+  // Otherwise, return default
+  return { createdAt: "desc" };
+}
+
 // ============ Route handler functions =========== //
 
 async function create(req, res) {
@@ -26,12 +56,9 @@ async function create(req, res) {
 
   // Insert all relevant task attributes into tasks table
   const task = await prisma.task.create({
-    data: {
-      title: value.title,
-      isCompleted: value.isCompleted,
-      userId: global.user_id,
-    },
-    select: { id: true, isCompleted: true, title: true },
+    // Destructure title, isCompleted, and priority into object and add userId
+    data: { ...value, userId: global.user_id },
+    select: { id: true, title: true, isCompleted: true, priority: true },
   });
 
   // Return task object as is; it only has the id, title, and is_completed status,
@@ -39,30 +66,154 @@ async function create(req, res) {
   return res.status(StatusCodes.CREATED).json(task);
 }
 
+async function bulkCreate(req, res, next) {
+  // Check for tasks array in request body; if not, send Not Found error.
+  const { tasks } = req.body;
+
+  if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Invalid request data." });
+  }
+
+  // Validate each task using joi, and if any task gives an error, send 400 invalid data to server
+  const validatedTasks = [];
+  for (const task of tasks) {
+    const { error, value } = taskSchema.validate(task, {
+      abortEarly: false,
+    });
+
+    // Send bad request if error present and halt progression
+    if (error) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        message: "Invalid data: Provided task does not match schema.",
+      });
+    }
+
+    // Add (potentially modified) task to array above if all succeeds. Add userId to array
+    validatedTasks.push({ ...value, userId: global.user_id });
+  }
+
+  // Add all tasks to database using createMany
+  try {
+    const result = await prisma.task.createMany({
+      data: validatedTasks,
+    });
+
+    // Send success to server!
+    return res.status(StatusCodes.CREATED).json({
+      tasksCreated: result.count,
+      totalRequested: validatedTasks.length,
+    });
+
+    // Catch errors in creating data
+  } catch (error) {
+    return next(error);
+  }
+}
+
 // Returns sanitized list of tasks for current user
 async function index(req, res) {
-  // First filter out tasks only related to current user
+  const whereClause = { userId: global.user_id };
+
+  // Parse filter query params and build where clause
+  const { find, isCompleted, priority, min_date, max_date } = req.query;
+
+  // find: task titles based on search word
+  if (find) {
+    whereClause.title = {
+      contains: find,
+      mode: "insensitive",
+    };
+  }
+
+  // isCompleted: tasks matching isCompleted boolean
+  if (isCompleted !== "undefined") {
+    whereClause.isCompleted = isCompleted === "true";
+  }
+
+  // priority: matches given priority level (low, medium, high)
+  if (priority) {
+    whereClause.priority = priority;
+  }
+
+  // min and max dates: task falls within defined intervals
+  // If either exist, create object in whereClause for createdAt
+  if (min_date || max_date) {
+    whereClause.createdAt = {};
+
+    if (min_date) {
+      whereClause.createdAt.gte = new Date(min_date);
+    }
+    if (max_date) {
+      whereClause.createdAt.lte = new Date(max_date);
+    }
+  }
+
+  // Parse page and limit from query parameters
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  // Verify that both page and limit are within valid ranges and send error to server if not
+  if (!(page >= 1) || !(limit >= 1 && limit <= 100)) {
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Page or limit query not within appropriate ranges" });
+  }
+
+  // Calculate skip value (to know how many tasks to skip)
+  const skip = (page - 1) * limit;
+
+  // Filter out tasks only related to current user based on skip and limit
   const tasks = await prisma.task.findMany({
-    where: {
-      // find only the task for this user
-      userId: global.user_id,
-    },
+    where: whereClause,
     select: {
       title: true,
       isCompleted: true,
       id: true,
+      priority: true,
+      createdAt: true,
+      User: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
     },
+    take: limit,
+    skip,
+    orderBy: createOrderBy(req.query),
   });
 
-  // If no user tasks found (i.e. num rows is 0), raise 404 not found
+  // If no user tasks found, raise 404 not found
   if (!tasks.length) {
     return res
       .status(StatusCodes.NOT_FOUND)
       .json({ message: "Tasks were not found." });
   }
 
+  // Find count of total tasks for pagination metadata
+  const totalUserTasksCount = await prisma.task.count({
+    where: whereClause,
+  });
+
+  // Find total number of pages for pagination metadata
+  const totalPages = Math.ceil(totalUserTasksCount / limit);
+
+  // Build pagination object
+  const pagination = {
+    page,
+    limit,
+    total: totalUserTasksCount,
+    pages: totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  };
   // Return row of data
-  return res.json(tasks);
+  return res.json({
+    tasks,
+    pagination,
+  });
 }
 
 // Returns task with particular ID for current user
@@ -85,7 +236,19 @@ async function show(req, res, next) {
         id: taskToFindId,
         userId: global.user_id,
       },
-      select: { id: true, title: true, isCompleted: true },
+      select: {
+        title: true,
+        isCompleted: true,
+        id: true,
+        priority: true,
+        createdAt: true,
+        User: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     // Throw error if taskToShow is null (default return if no task found)
@@ -127,7 +290,6 @@ async function update(req, res, next) {
 
   // Pull out id of requested task
   const taskToFindId = parseInt(req.params?.id);
-  console.log(taskToFindId);
 
   // If no task (i.e. if above is null), return 400 code
   if (!taskToFindId) {
@@ -146,8 +308,10 @@ async function update(req, res, next) {
         id: taskToFindId,
         userId: global.user_id,
       },
-      select: { title: true, isCompleted: true, id: true },
+      select: { title: true, isCompleted: true, id: true, priority: true },
     });
+    // Return updated object
+    return res.json(task);
   } catch (err) {
     // If record not found
     if (err.code === "P2025") {
@@ -159,9 +323,6 @@ async function update(req, res, next) {
       return next(err);
     }
   }
-
-  // Return updated object
-  return res.json(task);
 }
 
 async function deleteTask(req, res, next) {
@@ -185,8 +346,10 @@ async function deleteTask(req, res, next) {
         id: taskToFindId,
         userId: global.user_id,
       },
-      select: { id: true, isCompleted: true, title: true },
+      select: { id: true, isCompleted: true, title: true, priority: true },
     });
+    // Return deleted task
+    return res.json(deletedTask);
   } catch (err) {
     // Not found error
     if (err.code === "P2025") {
@@ -197,9 +360,6 @@ async function deleteTask(req, res, next) {
     // Pass on to next handler
     next(err);
   }
-
-  // Return deleted task
-  return res.json(deletedTask);
 }
 
-module.exports = { create, index, show, update, deleteTask };
+module.exports = { create, bulkCreate, index, show, update, deleteTask };
