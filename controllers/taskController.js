@@ -185,11 +185,11 @@ async function index(req, res) {
     orderBy: createOrderBy(req.query),
   });
 
-  // Return 404 if task list ends up being empty
+  // if empty tasks list, send 404 to server
   if (tasks.length === 0) {
     return res
       .status(StatusCodes.NOT_FOUND)
-      .json({ message: "Tasks were not found for this user" });
+      .json({ message: "Tasks could not be found for given user" });
   }
 
   // Find count of total tasks for pagination metadata
