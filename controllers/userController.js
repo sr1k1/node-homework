@@ -1,3 +1,5 @@
+// ===================== Imports ===================== //
+// Status codes for server
 const { StatusCodes } = require("http-status-codes");
 
 // Import(s) for db connection
@@ -8,11 +10,13 @@ const crypto = require("crypto");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
 
+// Imports for JWT
+const jwt = require("jsonwebtoken");
+
 // Function imports
 const { userSchema } = require("../validation/userSchema");
-const pool = require("../db/pg-pool");
 
-// Hashing functions
+// ===================== Hashing Fcns ===================== //
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
   const derivedKey = await scrypt(password, salt, 64);
@@ -26,7 +30,36 @@ async function comparePassword(inputPassword, storedHash) {
   return crypto.timingSafeEqual(keyBuffer, derivedKey);
 }
 
-// Routers
+// ===================== JWT Creation ===================== //
+// Create flags for jwt generation
+function cookieFlags(req) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
+  };
+}
+
+// Setter for cookie based on request
+function setJwtCookie(req, res, user) {
+  const payload = {
+    id: user.id,
+    csrfToken: crypto.randomUUID(),
+  };
+
+  // Put payload into a jwt token and sign with secret key
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+  // create cookie with the token and attach to response
+  // Cookie flags have to be different in production vs in testing.
+  // (maxAge is time in milliseconds, 1hr here)
+  res.cookie("jwt", token, { ...cookieFlags(req), maxAge: 3600000 });
+
+  // return csrf token because we will need it in logon and register
+  return payload.csrfToken;
+}
+
+// ===================== Routers ===================== //
 async function register(req, res, next) {
   // Check for presense of req.body
   if (!req.body) {
@@ -104,11 +137,13 @@ async function register(req, res, next) {
       // Return the user and welcome tasks
       return { user, welcomeTasks };
     });
-    // Set global user to new user and send object to server
-    global.user_id = user.id;
+
+    // Create JWT, set it in cookie, and extract CSRF token
+    const csrfToken = setJwtCookie(req, res, user);
 
     return res.status(StatusCodes.CREATED).json({
       user: userAndTaskCreationResult.user,
+      csrfToken,
       welcomeTasks: userAndTaskCreationResult.welcomeTasks,
       transactionStatus: "success",
     });
@@ -159,8 +194,13 @@ async function logon(req, res) {
     );
 
     if (arePasswordsMatching) {
-      global.user_id = user.id;
-      return res.status(StatusCodes.OK).json(user);
+      // Set cookie and return CSRF token as payload
+      const csrfToken = setJwtCookie(req, res, user);
+
+      return res.status(StatusCodes.OK).json({
+        ...user,
+        csrfToken,
+      });
     } else {
       // Otherwise, return UNAUTHORIZED status and say that Authentication failed
       return res
@@ -177,8 +217,8 @@ async function logon(req, res) {
 }
 
 function logoff(req, res) {
-  // Set current user to null and return status code of OK
-  global.user_id = null;
+  // Clear cookie and return status code of OK
+  res.clearCookie("jwt", cookieFlags(req));
   res.sendStatus(StatusCodes.OK);
   return;
 }

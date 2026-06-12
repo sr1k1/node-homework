@@ -1,12 +1,12 @@
+// General package imports
 const express = require("express");
-
-// Prisma import
 const prisma = require("./db/prisma");
+const cookieParser = require("cookie-parser");
 
-// Global variables (to temporarily store records in memory)
-global.user_id; // Stores current logged-in user object or null
-global.users; // array of user objects
-global.tasks; // array of task objects
+// Security package imports
+const helmet = require("helmet");
+const { xss } = require("express-xss-sanitizer");
+const rateLimiter = require("express-rate-limit");
 
 // Imported Routers
 const userRouter = require("./routes/userRoutes");
@@ -17,20 +17,33 @@ const analyticsRouter = require("./routes/analyticsRoutes");
 const notFoundHandler = require("./middleware/not-found");
 const errorHandler = require("./middleware/error-handler");
 
-// Imported Middleware
-const authMiddleware = require("./middleware/auth");
-
 // Create app using express()
 const app = express();
 
-// Initialize global variables
-global.user_id = null;
-global.users = [];
-global.tasks = [];
+// Enable "trust proxy" to allow our HTTP app to interface with
+// the front end's HTTPS proxy and use secure cookies
+app.set("trust proxy", 1);
 
 // =============== Create middleware to use before passing into routes ============ //
+// Rate limiter (prevent DOS attack)
+app.use(
+  rateLimiter({
+    windowMs: 15 * 60 * 1000, // specify a 15 minute window
+    max: 100, // each IP gets 100 requests per window specified above
+  }),
+);
+
+// Helmet for more added protection
+app.use(helmet());
+
 // Parse JSON body
 app.use(express.json({ limit: "1kb" }));
+
+// Parse cookies
+app.use(cookieParser());
+
+// Sanitize request body and cookies to prevent cross site scripting attacks
+app.use(xss());
 
 // Log useful parameters for debugging
 app.use((req, res, next) => {
@@ -55,11 +68,11 @@ app.post("/testpost", (req, res) => {
 // User routes
 app.use("/api/users", userRouter);
 
-// Task Routes: Call authentication middleware before passing to taskRouter
-app.use("/api/tasks", authMiddleware, taskRouter);
+// Task Routes
+app.use("/api/tasks", taskRouter);
 
 // Analytics Routes
-app.use("/api/analytics", authMiddleware, analyticsRouter);
+app.use("/api/analytics", analyticsRouter);
 
 // app health route
 app.get("/health", async (req, res) => {
