@@ -219,7 +219,7 @@ async function logon(req, res) {
 function logoff(req, res) {
   // Clear cookie and return status code of OK
   res.clearCookie("jwt", cookieFlags(req));
-  res.sendStatus(StatusCodes.OK);
+  return res.sendStatus(StatusCodes.OK);
   return;
 }
 
