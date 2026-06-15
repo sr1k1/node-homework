@@ -66,6 +66,53 @@ async function register(req, res, next) {
     req.body = {};
   }
 
+  // Verify if a real person is trying to log in using recaptcha
+  let isPerson = false;
+
+  if (req.body.recaptchaToken) {
+    const token = req.body.recaptchaToken;
+    const params = new URLSearchParams();
+
+    // append our required parameters to params
+    params.append("secret", process.env.RECAPTCHA_SECRET);
+    params.append("response", token);
+    params.append("remoteip", req.ip);
+
+    // could throw error that we process as 500
+    const response = await fetch(
+      "https://www.google.com/recaptcha/api/siteverify",
+      {
+        method: "POST",
+        body: params.toString(),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      },
+    );
+
+    const data = await response.json();
+
+    // if successful response to passed in token, resolve person's existence
+    if (data.success) {
+      isPerson = true;
+    }
+
+    delete req.body.recaptchaToken;
+
+    // also verify the person if the recaptcha bypass is being used
+  } else if (
+    process.env.RECAPTCHA_BYPASS &&
+    req.get("X-Recaptcha-Test") === process.env.RECAPTCHA_BYPASS
+  ) {
+    isPerson = true;
+  }
+
+  if (!isPerson) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      message: "Bot verification failed. Please complete the reCAPTCHA.",
+    });
+  }
+
   // Validate body and raise appropriate error
   const { error, value } = userSchema.validate(req.body, {
     abortEarly: false,
