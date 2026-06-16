@@ -24,8 +24,8 @@ module.exports = async (req, res, next) => {
       return send401(res);
     }
 
-    // This is where id is kept for subsequent access control
-    req.user = { id: decoded.id };
+    // This is where user id and user role is kept for subsequent access control
+    req.user = { id: decoded.id, role: decoded.role };
 
     // Check for cross site request forgery in select methods
     const reqMethods = ["POST", "PATCH", "PUT", "DELETE", "CONNECT"];
