@@ -1,1 +1,11 @@
 URL for deployed application: https://node-homework-unaw.onrender.com/
+
+I added one additional feature to this project in the "manager" vs. "regular" role. 
+
+Only people with the "manager" role will be able to access the following routes:
+- /api/analytics/users
+- /api/analytics/users/:id
+- /api/analytics/tasks/search
+
+To test this, you must include "role": "manager" in the JSON data when registering through Postman. 
+Registrants that do not include this flag will receive the default "regular" role. 
