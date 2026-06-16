@@ -44,6 +44,7 @@ function cookieFlags(req) {
 function setJwtCookie(req, res, user) {
   const payload = {
     id: user.id,
+    role: user.role,
     csrfToken: crypto.randomUUID(),
   };
 
@@ -139,8 +140,9 @@ async function register(req, res, next) {
           name: value.name,
           email: value.email,
           hashedPassword: value.hashedPassword,
+          role: value.role,
         },
-        select: { name: true, email: true, id: true },
+        select: { name: true, email: true, id: true, role: true },
       });
 
       // Create three welcome tasks and put all three
@@ -218,6 +220,7 @@ async function logon(req, res) {
     select: {
       id: true,
       name: true,
+      role: true,
       email: true,
       createdAt: true,
     },
